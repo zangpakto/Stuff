@@ -8,13 +8,42 @@
 
 import UIKit
 
+import CoreData
+
 class ViewController: UIViewController {
 
     //Link up tableview and data storage type
     @IBOutlet weak var tableView: UITableView!
     
     //mutable array to be used for tableview entries
-    var names = [String]()
+    var people = [NSManagedObject]()
+ 
+    //Making sure the data is persistant
+    func saveName(name: String) {
+        
+        let appDelegate =
+        UIApplication.sharedApplication().delegate as! AppDelegate
+        
+        let managedContext = appDelegate.managedObjectContext!
+        
+        //Create a new Managed Object
+        let entity =  NSEntityDescription.entityForName("Person",
+            inManagedObjectContext:
+            managedContext)
+        
+        let person = NSManagedObject(entity: entity!,
+            insertIntoManagedObjectContext:managedContext)
+        
+        //setting the name using KVC
+        person.setValue(name, forKey: "name")
+        
+        //save the edit
+        var error: NSError?
+        if !managedContext.save(&error) {
+            println("Could not save \(error), \(error?.userInfo)")
+        }
+        people.append(person)
+    }
     
     //Add some functionality to the Add button
     @IBAction func addName(sender: AnyObject) {
@@ -27,7 +56,7 @@ class ViewController: UIViewController {
             style: .Default) { (action: UIAlertAction!) -> Void in
                 
                 let textField = alert.textFields![0] as! UITextField
-                self.names.append(textField.text)
+                self.saveName(textField.text)
                 self.tableView.reloadData()
         }
         
@@ -58,7 +87,7 @@ class ViewController: UIViewController {
     //UITableViewDataSource
     func tableView(tableView: UITableView,
         numberOfRowsInSection section: Int) -> Int {
-            return names.count
+            return people.count
     }
     
     func tableView(tableView: UITableView,
@@ -69,9 +98,34 @@ class ViewController: UIViewController {
             tableView.dequeueReusableCellWithIdentifier("Cell")
                 as! UITableViewCell
             
-            cell.textLabel!.text = names[indexPath.row]
+            let person = people[indexPath.row]
+            cell.textLabel!.text = person.valueForKey("name") as? String
             
             return cell
+    }
+    
+    override func viewWillAppear(animated: Bool) {
+        super.viewWillAppear(animated)
+        
+        let appDelegate =
+        UIApplication.sharedApplication().delegate as! AppDelegate
+        
+        let managedContext = appDelegate.managedObjectContext!
+        
+        // Fetch the data stored on system
+        let fetchRequest = NSFetchRequest(entityName:"Person")
+        
+        var error: NSError?
+        
+        let fetchedResults =
+        managedContext.executeFetchRequest(fetchRequest,
+            error: &error) as? [NSManagedObject]
+        
+        if let results = fetchedResults {
+            people = results
+        } else {
+            println("Could not fetch \(error), \(error!.userInfo)")
+        }
     }
 
     override func didReceiveMemoryWarning() {
